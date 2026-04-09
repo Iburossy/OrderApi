@@ -116,27 +116,56 @@ jobs:
           retention-days: 5
 
   # ============================================
-  # JOB 4: Deploy to AWS (seulement sur push main)
+  # JOB 4: Deploy with CDK (seulement sur push main)
   # ============================================
   deploy:
-    name: 🚀 Deploy to AWS
+    name: 🚀 Deploy with CDK
     runs-on: ubuntu-latest
     needs: [build]
     # Seulement sur push vers main (après merge de la PR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     environment:
       name: production
       url: https://your-api-gateway-url.amazonaws.com
-    
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
 
-      - name: 📥 Download Lambda artifact
-        uses: actions/download-artifact@v4
+    steps:
+      - name: 📥 Checkout Backend
+        uses: actions/checkout@v4
         with:
-          name: lambda-package
+          path: Backend
+
+      - name: 📥 Checkout CDK
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: cdk
+
+      - name: � Setup Node.js for Backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: � Setup Node.js for CDK
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: 📚 Install Backend dependencies
+        working-directory: Backend
+        run: npm ci
+
+      - name: 📚 Install CDK dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: 🏗️ Build Backend
+        working-directory: Backend
+        run: npm run build
 
       - name: 🔧 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -145,20 +174,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 📦 Unzip Lambda package
-        run: unzip -q lambda.zip
-
-      - name: 🚀 Deploy Lambda function
-        run: |
-          cd dist-lambda
-          zip -rq ../function.zip .
-          cd ..
-          aws lambda update-function-code \
-            --function-name OrderApiFunction \
-            --zip-file fileb://function.zip \
-            --region ${{ env.AWS_REGION }}
+      - name: 🚀 CDK Deploy
+        working-directory: cdk
+        run: npx cdk deploy --require-approval never
 
       - name: ✅ Deployment complete
         run: |
-          echo "🎉 Deployment successful!"
-          echo "Lambda function updated: OrderApiFunction"
+          echo "🎉 Deployment successful with CDK!"
