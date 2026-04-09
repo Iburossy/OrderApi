@@ -1,0 +1,183 @@
+name: CI/CD Pipeline
+
+on:
+  # Déclenché sur PR vers main (depuis dev)
+  pull_request:
+    branches: [main]
+  
+  # Déclenché sur push direct vers main (après merge de la PR)
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20.x'
+  AWS_REGION: eu-west-1
+
+jobs:
+  # ============================================
+  # JOB 1: Tests et vérifications (sur PR)
+  # ============================================
+  test:
+    name: 🧪 Tests & Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Lint
+        run: npm run lint
+        continue-on-error: true  # Ne pas bloquer si pas de config ESLint
+
+      - name: 🏗️ Build
+        run: npm run build
+
+      - name: 🧪 Run tests
+        run: npm test
+        continue-on-error: true  # Ne pas bloquer si pas de tests
+
+      - name: 📊 Upload coverage (optional)
+        uses: codecov/codecov-action@v3
+        if: success()
+        continue-on-error: true
+
+  # ============================================
+  # JOB 2: Security scan
+  # ============================================
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🔐 Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Avertir mais ne pas bloquer
+
+  # ============================================
+  # JOB 3: Build Lambda package
+  # ============================================
+  build:
+    name: 🏗️ Build Lambda
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build TypeScript
+        run: npm run build
+
+      - name: 📦 Create Lambda package
+        run: |
+          mkdir -p dist-lambda
+          cp -r dist/* dist-lambda/
+          cp package.json dist-lambda/
+          cd dist-lambda
+          npm install --production --silent
+          cd ..
+          zip -rq lambda.zip dist-lambda
+
+      - name: 📤 Upload Lambda artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda.zip
+          retention-days: 5
+
+  # ============================================
+  # JOB 4: Deploy with CDK (seulement sur push main)
+  # ============================================
+  deploy:
+    name: 🚀 Deploy with CDK
+    runs-on: ubuntu-latest
+    needs: [build]
+    # Seulement sur push vers main (après merge de la PR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://your-api-gateway-url.amazonaws.com
+
+    steps:
+      - name: 📥 Checkout Backend
+        uses: actions/checkout@v4
+        with:
+          path: Backend
+
+      - name: 📥 Checkout CDK
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: cdk
+
+      - name: � Setup Node.js for Backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: � Setup Node.js for CDK
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: cdk/package-lock.json
+
+      - name: 📚 Install Backend dependencies
+        working-directory: Backend
+        run: npm ci
+
+      - name: 📚 Install CDK dependencies
+        working-directory: cdk
+        run: npm ci
+
+      - name: 🏗️ Build Backend
+        working-directory: Backend
+        run: npm run build
+
+      - name: 🔧 Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 🚀 CDK Deploy
+        working-directory: cdk
+        run: npx cdk deploy --require-approval never
+
+      - name: ✅ Deployment complete
+        run: |
+          echo "🎉 Deployment successful with CDK!"

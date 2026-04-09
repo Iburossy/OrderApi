@@ -35,9 +35,11 @@ async function bootstrap(): Promise<express.Express> {
       })
     );
     
-    // Désactive CORS (géré par API Gateway)
+    // Configuration CORS complète
     nestApp.enableCors({
       origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: 'Content-Type,Accept,Authorization,x-idempotency-key',
       credentials: true,
     });
     

@@ -105,6 +105,14 @@ temp/
 .jest/
 coverage/
 
+# Lambda build artifacts
+# ----------------------
+dist-lambda/
+lambda.zip
+function.zip
+layer.zip
+layer-arn.txt
+
 # Misc
 # -----
 *.tgz
