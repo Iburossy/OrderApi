@@ -159,7 +159,7 @@ jobs:
 
       - name: 📚 Install CDK dependencies
         working-directory: cdk/cdk
-        run: npm ci
+        run: npm install
 
       - name: 🏗️ Build Backend
         working-directory: Backend
