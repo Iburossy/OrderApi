@@ -135,10 +135,10 @@ jobs:
         with:
           path: Backend
 
-      - name: 📥 Checkout CDK
+      - name: 📥 Checkout CDK branch
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository }}
+          ref: feat/cdk-integration  # ← Nom de la branche CDK
           path: cdk
 
       - name: � Setup Node.js for Backend
