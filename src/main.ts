@@ -6,8 +6,9 @@ import express from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
+
 // ==========================================
-// Variables globales pour optimiser les cold starts
+// Variables globales pour optimiser les cold start s
 // ==========================================
 let cachedServer: Handler;
 let cachedApp: express.Express;
