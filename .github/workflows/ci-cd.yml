@@ -152,8 +152,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: cdk/cdk/package-lock.json
 
       - name: 📚 Install Backend dependencies
         working-directory: Backend
