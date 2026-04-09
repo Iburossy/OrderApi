@@ -165,7 +165,15 @@ jobs:
         working-directory: Backend
         run: npm run build
 
-      - name: 🔧 Configure AWS credentials
+      - name: � Prepare Lambda package for CDK
+        run: |
+          mkdir -p cdk/dist-lambda
+          cp -r Backend/dist/* cdk/dist-lambda/
+          cp Backend/package.json cdk/dist-lambda/
+          cd cdk/dist-lambda
+          npm install --production --silent
+
+      - name: �🔧 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
