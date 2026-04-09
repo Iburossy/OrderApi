@@ -17,9 +17,9 @@ dist/
 build/
 *.tsbuildinfo
 
-build-lambda.sh
-deploy-lambda.sh
-create-lambda-layer.sh
+# build-lambda.sh
+# deploy-lambda.sh
+# create-lambda-layer.sh
 
 
 # NestJS specific
