@@ -24,7 +24,7 @@ async function bootstrap(): Promise<express.Express> {
     
     const nestApp = await NestFactory.create(AppModule, adapter);
     
-    // Configuration du ValidationPipe global
+    // Configuration du ValidationPipe global e
     nestApp.useGlobalPipes(
       new ValidationPipe({
         whitelist: true, // Supprime les propriétés non décorées
